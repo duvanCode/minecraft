@@ -1,0 +1,13 @@
+# Datos del servidor (mundo, logs, configs generadas)
+data/
+*.jar
+*.log
+*.log.gz
+
+# Backups
+*.tar.gz
+*.zip
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db

@@ -1,0 +1,100 @@
+version: "3.9"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Servidor Minecraft Java Edition 26.2 – Chaos Cubed
+# Compatible con Dokploy / Coolify
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+  minecraft:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    container_name: minecraft-26-2
+
+    restart: unless-stopped
+
+    # ── Puertos ──────────────────────────────────────────────────────────────
+    # Puerto estándar de Minecraft Java Edition
+    ports:
+      - "25565:25565"
+
+    # ── Variables de entorno ─────────────────────────────────────────────────
+    environment:
+      # ¡OBLIGATORIO! Cambia a "true" para aceptar el EULA de Mojang:
+      # https://aka.ms/MinecraftEULA
+      EULA: "true"
+
+      # Zona horaria (ajusta a la tuya)
+      TZ: "America/Bogota"
+
+      # RAM: ajusta según los recursos de tu VPS
+      # Recomendado: mínimo 2 GB para 5-10 jugadores
+      JAVA_OPTS: >-
+        -Xms2G
+        -Xmx4G
+        -XX:+UseG1GC
+        -XX:+ParallelRefProcEnabled
+        -XX:MaxGCPauseMillis=200
+        -XX:+UnlockExperimentalVMOptions
+        -XX:+DisableExplicitGC
+        -XX:+AlwaysPreTouch
+        -XX:G1NewSizePercent=30
+        -XX:G1MaxNewSizePercent=40
+        -XX:G1HeapRegionSize=8M
+        -XX:G1ReservePercent=20
+        -XX:G1HeapWastePercent=5
+        -XX:G1MixedGCCountTarget=8
+        -XX:InitiatingHeapOccupancyPercent=15
+        -XX:G1MixedGCLiveThresholdPercent=90
+        -XX:G1RSetUpdatingPauseTimePercent=5
+        -XX:SurvivorRatio=32
+        -XX:+PerfDisableSharedMem
+        -XX:MaxTenuringThreshold=1
+
+    # ── Volúmenes – persistencia del mundo y configuración ───────────────────
+    volumes:
+      - minecraft_data:/minecraft/data
+
+    # ── Recursos del sistema (ajusta según tu VPS) ────────────────────────────
+    deploy:
+      resources:
+        limits:
+          memory: 5G          # RAM máxima del contenedor
+          cpus: "2.0"         # CPUs máximas
+        reservations:
+          memory: 2G          # RAM garantizada al iniciar
+
+    # ── Health check ─────────────────────────────────────────────────────────
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/25565' 2>/dev/null && echo 'ok' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s      # El servidor tarda en arrancar la primera vez
+
+    # ── Logging ──────────────────────────────────────────────────────────────
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+    # ── Seguridad ─────────────────────────────────────────────────────────────
+    security_opt:
+      - no-new-privileges:true
+
+    stdin_open: true
+    tty: true
+
+# ── Volúmenes nombrados ───────────────────────────────────────────────────────
+volumes:
+  minecraft_data:
+    driver: local
+    # En Dokploy el volumen se gestiona automáticamente.
+    # Para backups, mapea a una ruta específica del host:
+    # driver_opts:
+    #   type: none
+    #   o: bind
+    #   device: /srv/minecraft/data
