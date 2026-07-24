@@ -46,7 +46,7 @@ if [ ! -f "$DATA_DIR/server.properties" ]; then
 
 # ── Red ────────────────────────────────────────────────────────────
 server-port=25565
-online-mode=true
+online-mode=false
 max-players=20
 network-compression-threshold=256
 
