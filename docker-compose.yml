@@ -1,7 +1,7 @@
 version: "3.9"
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Servidor Minecraft Java Edition 26.2 – Chaos Cubed
+# Servidor Minecraft Java Edition 26.2 - Chaos Cubed
 # Compatible con Dokploy / Coolify
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -22,6 +22,13 @@ services:
 
     # ── Variables de entorno ─────────────────────────────────────────────────
     environment:
+      # Servidor preparado para Fabric. Cambia a "vanilla" si no usaras mods.
+      SERVER_FLAVOR: "fabric"
+
+      # Versiones del loader de Fabric. Puedes fijarlas si quieres un build exacto.
+      FABRIC_LOADER_VERSION: "stable"
+      FABRIC_INSTALLER_VERSION: "stable"
+
       # ¡OBLIGATORIO! Cambia a "true" para aceptar el EULA de Mojang:
       # https://aka.ms/MinecraftEULA
       EULA: "true"
@@ -53,9 +60,10 @@ services:
         -XX:+PerfDisableSharedMem
         -XX:MaxTenuringThreshold=1
 
-    # ── Volúmenes – persistencia del mundo y configuración ───────────────────
+    # ── Volumenes - persistencia del mundo, configuracion y mods ─────────────
     volumes:
       - minecraft_data:/minecraft/data
+      - ./mods/server:/minecraft/data/mods
 
     # ── Recursos del sistema (ajusta según tu VPS) ────────────────────────────
     deploy:
