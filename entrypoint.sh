@@ -12,6 +12,8 @@ MODS_DIR="$DATA_DIR/mods"
 MC_PORT="${MC_PORT:-25566}"
 SERVER_FLAVOR="${SERVER_FLAVOR:-fabric}"
 SERVER_FLAVOR_LOWER="${SERVER_FLAVOR,,}"
+MINECRAFT_UID="$(id -u minecraft)"
+MINECRAFT_GID="$(id -g minecraft)"
 
 download_file() {
     local target="$1"
@@ -21,8 +23,17 @@ download_file() {
     curl -fL -o "$target" "$url"
 }
 
-# Crear directorios persistentes si no existen
-mkdir -p "$DATA_DIR" "$MODS_DIR"
+fix_data_permissions() {
+    mkdir -p "$DATA_DIR" "$MODS_DIR"
+
+    if [ "$(id -u)" -eq 0 ]; then
+        chown -R "$MINECRAFT_UID:$MINECRAFT_GID" /minecraft
+        chmod u+rwX "$DATA_DIR" "$MODS_DIR"
+    fi
+}
+
+# Crear directorios persistentes y corregir permisos del volumen montado
+fix_data_permissions
 cd "$DATA_DIR"
 
 case "$SERVER_FLAVOR_LOWER" in
@@ -132,7 +143,14 @@ echo "  RAM: ${JAVA_OPTS}"
 echo "  Mods: ${MODS_DIR}"
 echo "═══════════════════════════════════════════════════════"
 
-exec java $JAVA_OPTS \
-    -jar "$STARTUP_JAR" \
-    --nogui \
-    --universe "$DATA_DIR"
+if [ "$(id -u)" -eq 0 ]; then
+    exec gosu minecraft java $JAVA_OPTS \
+        -jar "$STARTUP_JAR" \
+        --nogui \
+        --universe "$DATA_DIR"
+else
+    exec java $JAVA_OPTS \
+        -jar "$STARTUP_JAR" \
+        --nogui \
+        --universe "$DATA_DIR"
+fi

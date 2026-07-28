@@ -26,9 +26,9 @@ RUN groupadd -r minecraft && useradd -r -g minecraft -m -d /minecraft minecraft
 
 WORKDIR /minecraft
 
-# Instalar curl y wget (para descargar el JAR en el entrypoint)
+# Instalar utilidades necesarias para descargar archivos y bajar privilegios
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends curl wget && \
+    apt-get install -y --no-install-recommends curl wget gosu && \
     rm -rf /var/lib/apt/lists/*
 
 # Copiar el script de entrada
@@ -43,7 +43,5 @@ EXPOSE 25565/tcp
 
 # El mundo y la configuración se persisten en un volumen
 VOLUME ["/minecraft/data"]
-
-USER minecraft
 
 ENTRYPOINT ["/entrypoint.sh"]
