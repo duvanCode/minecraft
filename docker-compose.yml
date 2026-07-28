@@ -11,14 +11,14 @@ services:
       context: .
       dockerfile: Dockerfile
 
-    container_name: minecraft-26-2
+    container_name: chaos-cubed-server
 
     restart: unless-stopped
 
     # ── Puertos ──────────────────────────────────────────────────────────────
-    # Puerto estándar de Minecraft Java Edition
+    # Puerto estandar de Minecraft Java Edition
     ports:
-      - "25565:25565"
+      - "25566:25566"
 
     # ── Variables de entorno ─────────────────────────────────────────────────
     environment:
@@ -35,6 +35,9 @@ services:
 
       # Zona horaria (ajusta a la tuya)
       TZ: "America/Bogota"
+
+      # Puerto interno del servidor
+      MC_PORT: "25566"
 
       # RAM: ajusta según los recursos de tu VPS
       # Recomendado: mínimo 2 GB para 5-10 jugadores
@@ -76,7 +79,7 @@ services:
 
     # ── Health check ─────────────────────────────────────────────────────────
     healthcheck:
-      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/25565' 2>/dev/null && echo 'ok' || exit 1"]
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/${MC_PORT:-25566}' 2>/dev/null && echo ok || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5

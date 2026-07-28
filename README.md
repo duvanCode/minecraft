@@ -22,6 +22,8 @@ minecraft-server/
 - El contenedor arranca en modo `Fabric` por defecto.
 - Los mods del servidor se montan desde `./mods/server`.
 - Se agrega `./mods/client` para guardar el pack recomendado para los jugadores.
+- La instancia Docker usa el nombre `chaos-cubed-server`.
+- El servidor Java usa el puerto `25566`.
 - Si quieres volver a vanilla, cambia `SERVER_FLAVOR` a `vanilla`.
 
 ## Despliegue

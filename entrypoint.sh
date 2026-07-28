@@ -9,6 +9,7 @@ DATA_DIR="/minecraft/data"
 SERVER_JAR="$DATA_DIR/server.jar"
 FABRIC_SERVER_JAR="$DATA_DIR/fabric-server-launch.jar"
 MODS_DIR="$DATA_DIR/mods"
+MC_PORT="${MC_PORT:-25566}"
 SERVER_FLAVOR="${SERVER_FLAVOR:-fabric}"
 SERVER_FLAVOR_LOWER="${SERVER_FLAVOR,,}"
 
@@ -79,7 +80,7 @@ if [ ! -f "$DATA_DIR/server.properties" ]; then
 # Edita estos valores y reinicia el contenedor
 
 # ── Red ────────────────────────────────────────────────────────────
-server-port=25565
+server-port=25566
 online-mode=false
 max-players=20
 network-compression-threshold=256
@@ -114,6 +115,13 @@ enable-rcon=false
 enable-query=false
 EOF
     echo "✔ server.properties creado."
+fi
+
+# Mantener el puerto del servidor alineado con la variable del contenedor
+if grep -q '^server-port=' "$DATA_DIR/server.properties"; then
+    sed -i "s/^server-port=.*/server-port=${MC_PORT}/" "$DATA_DIR/server.properties"
+else
+    printf '\nserver-port=%s\n' "$MC_PORT" >> "$DATA_DIR/server.properties"
 fi
 
 # ── 4. Iniciar el servidor ────────────────────────────────────────────────────
