@@ -6,8 +6,9 @@ set -e
 # ─────────────────────────────────────────────────────────────────────────────
 
 DATA_DIR="/minecraft/data"
-SERVER_JAR="$DATA_DIR/server.jar"
-FABRIC_SERVER_JAR="$DATA_DIR/fabric-server-launch.jar"
+RUNTIME_DIR="/minecraft/runtime"
+SERVER_JAR="$RUNTIME_DIR/server.jar"
+FABRIC_SERVER_JAR="$RUNTIME_DIR/fabric-server-launch.jar"
 MODS_DIR="$DATA_DIR/mods"
 MC_PORT="${MC_PORT:-25566}"
 SERVER_FLAVOR="${SERVER_FLAVOR:-fabric}"
@@ -24,16 +25,33 @@ download_file() {
 }
 
 fix_data_permissions() {
-    mkdir -p "$DATA_DIR" "$MODS_DIR"
+    mkdir -p "$DATA_DIR" "$MODS_DIR" "$RUNTIME_DIR"
 
     if [ "$(id -u)" -eq 0 ]; then
-        chown -R "$MINECRAFT_UID:$MINECRAFT_GID" /minecraft
-        chmod u+rwX "$DATA_DIR" "$MODS_DIR"
+        chown -R "$MINECRAFT_UID:$MINECRAFT_GID" /minecraft 2>/dev/null || true
+        chmod u+rwX "$DATA_DIR" "$MODS_DIR" "$RUNTIME_DIR" 2>/dev/null || true
     fi
+}
+
+ensure_data_dir_writable() {
+    local probe_file="$DATA_DIR/.write-test"
+
+    if ! touch "$probe_file" 2>/dev/null; then
+        echo "══════════════════════════════════════════════════════════════════════"
+        echo "  ERROR: El volumen $DATA_DIR no tiene permisos de escritura."
+        echo "  Revisa el volumen montado en tu plataforma (Dokploy/Coolify)."
+        echo "══════════════════════════════════════════════════════════════════════"
+        ls -ld "$DATA_DIR" || true
+        id || true
+        exit 1
+    fi
+
+    rm -f "$probe_file"
 }
 
 # Crear directorios persistentes y corregir permisos del volumen montado
 fix_data_permissions
+ensure_data_dir_writable
 cd "$DATA_DIR"
 
 case "$SERVER_FLAVOR_LOWER" in
