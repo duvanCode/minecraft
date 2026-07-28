@@ -24,6 +24,8 @@ minecraft-server/
 - Se agrega `./mods/client` para guardar el pack recomendado para los jugadores.
 - La instancia Docker usa el nombre `chaos-cubed-server`.
 - El servidor Java usa el puerto `25566`.
+- El acceso Bedrock queda habilitado con `Geyser` y `Floodgate`.
+- El puerto Bedrock expuesto es `19132/udp`.
 - Si quieres volver a vanilla, cambia `SERVER_FLAVOR` a `vanilla`.
 
 ## Despliegue
@@ -53,6 +55,9 @@ minecraft-server/
 | `FABRIC_INSTALLER_VERSION` | `stable` | Version del instalador de Fabric |
 | `EULA` | `false` | Debe ser `true` para aceptar el EULA |
 | `TZ` | `America/Bogota` | Zona horaria del contenedor |
+| `ENABLE_BEDROCK` | `true` | Instala y activa Geyser para acceso Bedrock |
+| `ENABLE_FLOODGATE` | `true` | Permite que jugadores Bedrock entren sin cuenta Java |
+| `BEDROCK_PORT` | `19132` | Puerto UDP para clientes Bedrock |
 | `JAVA_OPTS` | ver compose | Flags de JVM |
 
 ### RAM sugerida
@@ -77,6 +82,12 @@ Esa carpeta se monta automaticamente como:
 ```text
 /minecraft/data/mods
 ```
+
+Ademas, cuando `ENABLE_BEDROCK=true`, el contenedor descarga automaticamente:
+
+- `fabric-api`
+- `Geyser`
+- `Floodgate`
 
 ### Base recomendada para el server
 
@@ -113,6 +124,12 @@ macOS:   ~/Library/Application Support/minecraft/mods
 ## Nota importante
 
 Con esta seleccion basica, el servidor queda listo para usar mods de Fabric, pero los `.jar` deben descargarse en versiones compatibles con `MC_VERSION` y con el loader configurado. El repo deja la estructura preparada y separa claramente lo que va en el servidor y lo que va en el cliente.
+
+Si quieres que jugadores Bedrock entren:
+
+- Usa la IP o dominio del servidor
+- Puerto `19132` en Bedrock
+- Mantén solo mods `server-side`; cualquier mod que exija instalacion en el cliente Java puede bloquear a jugadores Bedrock
 
 ## Comandos utiles
 

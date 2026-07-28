@@ -11,10 +11,24 @@ SERVER_JAR="$RUNTIME_DIR/server.jar"
 FABRIC_SERVER_JAR="$RUNTIME_DIR/fabric-server-launch.jar"
 MODS_DIR="$DATA_DIR/mods"
 MC_PORT="${MC_PORT:-25566}"
+BEDROCK_PORT="${BEDROCK_PORT:-19132}"
 SERVER_FLAVOR="${SERVER_FLAVOR:-fabric}"
 SERVER_FLAVOR_LOWER="${SERVER_FLAVOR,,}"
+ENABLE_BEDROCK="${ENABLE_BEDROCK:-true}"
+ENABLE_BEDROCK_LOWER="${ENABLE_BEDROCK,,}"
+ENABLE_FLOODGATE="${ENABLE_FLOODGATE:-true}"
+ENABLE_FLOODGATE_LOWER="${ENABLE_FLOODGATE,,}"
 MINECRAFT_UID="$(id -u minecraft)"
 MINECRAFT_GID="$(id -g minecraft)"
+MODRINTH_API_URL="https://api.modrinth.com/v2"
+FABRIC_API_PROJECT_ID="P7dR8mSH"
+GEYSER_PROJECT_ID="wKkoqHrH"
+FLOODGATE_PROJECT_ID="bWrNNfkb"
+FABRIC_API_MANAGED_JAR="$MODS_DIR/zz-fabric-api-auto.jar"
+GEYSER_MANAGED_JAR="$MODS_DIR/zz-geyser-auto.jar"
+FLOODGATE_MANAGED_JAR="$MODS_DIR/zz-floodgate-auto.jar"
+BEDROCK_STATE_FILE="$DATA_DIR/.bedrock-managed-state"
+GEYSER_CONFIG_FILE="$DATA_DIR/config/Geyser-Fabric/config.yml"
 
 download_file() {
     local target="$1"
@@ -49,9 +63,155 @@ ensure_data_dir_writable() {
     rm -f "$probe_file"
 }
 
+ensure_mods_dir_writable() {
+    local probe_file="$MODS_DIR/.write-test"
+
+    if ! touch "$probe_file" 2>/dev/null; then
+        echo "══════════════════════════════════════════════════════════════════════"
+        echo "  ERROR: La carpeta $MODS_DIR no tiene permisos de escritura."
+        echo "  No se pueden instalar los mods necesarios para Bedrock."
+        echo "══════════════════════════════════════════════════════════════════════"
+        ls -ld "$MODS_DIR" || true
+        exit 1
+    fi
+
+    rm -f "$probe_file"
+}
+
+fetch_modrinth_primary_file() {
+    local project_id="$1"
+    local response
+    local url
+    local filename
+
+    response="$(curl -fsSL "${MODRINTH_API_URL}/project/${project_id}/version?loaders=%5B%22fabric%22%5D&game_versions=%5B%22${MC_VERSION}%22%5D")"
+
+    url="$(printf '%s' "$response" | jq -r '.[0].files[]? | select(.primary == true) | .url' | head -n 1)"
+    filename="$(printf '%s' "$response" | jq -r '.[0].files[]? | select(.primary == true) | .filename' | head -n 1)"
+
+    if [ -z "$url" ] || [ "$url" = "null" ] || [ -z "$filename" ] || [ "$filename" = "null" ]; then
+        echo "ERROR: No se encontro una descarga compatible en Modrinth para el proyecto ${project_id} y MC_VERSION=${MC_VERSION}."
+        exit 1
+    fi
+
+    printf '%s|%s\n' "$filename" "$url"
+}
+
+download_managed_mod() {
+    local target="$1"
+    local descriptor="$2"
+    local filename="${descriptor%%|*}"
+    local url="${descriptor#*|}"
+    local temp_file="${target}.tmp"
+
+    echo "► Descargando ${filename}..."
+    download_file "$temp_file" "$url"
+    mv "$temp_file" "$target"
+}
+
+ensure_bedrock_mods() {
+    local fabric_api_descriptor
+    local geyser_descriptor
+    local floodgate_descriptor
+    local desired_state
+    local current_state=""
+
+    if [ "$ENABLE_BEDROCK_LOWER" != "true" ]; then
+        rm -f "$GEYSER_MANAGED_JAR" "$FLOODGATE_MANAGED_JAR" "$BEDROCK_STATE_FILE"
+        return
+    fi
+
+    if [ "$SERVER_FLAVOR_LOWER" != "fabric" ]; then
+        echo "ERROR: ENABLE_BEDROCK=true requiere SERVER_FLAVOR=fabric."
+        exit 1
+    fi
+
+    ensure_mods_dir_writable
+
+    fabric_api_descriptor="$(fetch_modrinth_primary_file "$FABRIC_API_PROJECT_ID")"
+    geyser_descriptor="$(fetch_modrinth_primary_file "$GEYSER_PROJECT_ID")"
+    desired_state="MC_VERSION=${MC_VERSION}
+ENABLE_FLOODGATE=${ENABLE_FLOODGATE_LOWER}
+FABRIC_API=${fabric_api_descriptor}
+GEYSER=${geyser_descriptor}"
+
+    if [ "$ENABLE_FLOODGATE_LOWER" = "true" ]; then
+        floodgate_descriptor="$(fetch_modrinth_primary_file "$FLOODGATE_PROJECT_ID")"
+        desired_state="${desired_state}
+FLOODGATE=${floodgate_descriptor}"
+    fi
+
+    if [ -f "$BEDROCK_STATE_FILE" ]; then
+        current_state="$(cat "$BEDROCK_STATE_FILE")"
+    fi
+
+    if [ "$current_state" != "$desired_state" ]; then
+        echo "═══════════════════════════════════════════════════════"
+        echo "  Instalando compatibilidad Bedrock..."
+        echo "  MC_VERSION: ${MC_VERSION}"
+        echo "  BEDROCK_PORT: ${BEDROCK_PORT}"
+        echo "═══════════════════════════════════════════════════════"
+        download_managed_mod "$FABRIC_API_MANAGED_JAR" "$fabric_api_descriptor"
+        download_managed_mod "$GEYSER_MANAGED_JAR" "$geyser_descriptor"
+
+        if [ "$ENABLE_FLOODGATE_LOWER" = "true" ]; then
+            download_managed_mod "$FLOODGATE_MANAGED_JAR" "$floodgate_descriptor"
+        else
+            rm -f "$FLOODGATE_MANAGED_JAR"
+        fi
+
+        printf '%s\n' "$desired_state" > "$BEDROCK_STATE_FILE"
+        echo "✔ Mods Bedrock actualizados."
+    else
+        echo "✔ Mods Bedrock ya estan sincronizados, omitiendo descarga."
+    fi
+}
+
+configure_geyser() {
+    local temp_config
+
+    if [ "$ENABLE_BEDROCK_LOWER" != "true" ] || [ ! -f "$GEYSER_CONFIG_FILE" ]; then
+        return
+    fi
+
+    temp_config="$(mktemp)"
+
+    awk -v bedrock_port="$BEDROCK_PORT" -v auth_type="$(
+        if [ "$ENABLE_FLOODGATE_LOWER" = "true" ]; then
+            printf '%s' "floodgate"
+        else
+            printf '%s' "offline"
+        fi
+    )" '
+        /^bedrock:/ { section="bedrock"; print; next }
+        /^remote:/ { section="remote"; print; next }
+        /^[^[:space:]]/ { section="" }
+        section == "bedrock" && /^[[:space:]]+port:/ {
+            sub(/:.*/, ": " bedrock_port)
+            print
+            next
+        }
+        section == "bedrock" && /^[[:space:]]+clone-remote-port:/ {
+            sub(/:.*/, ": false")
+            print
+            next
+        }
+        section == "remote" && /^[[:space:]]+auth-type:/ {
+            sub(/:.*/, ": " auth_type)
+            print
+            next
+        }
+        { print }
+    ' "$GEYSER_CONFIG_FILE" > "$temp_config"
+
+    mv "$temp_config" "$GEYSER_CONFIG_FILE"
+}
+
 # Crear directorios persistentes y corregir permisos del volumen montado
 fix_data_permissions
 ensure_data_dir_writable
+ensure_bedrock_mods
+configure_geyser
 cd "$DATA_DIR"
 
 case "$SERVER_FLAVOR_LOWER" in
@@ -159,6 +319,8 @@ echo "  Iniciando Minecraft Java Edition ${MC_VERSION} - Chaos Cubed"
 echo "  Flavor: ${SERVER_FLAVOR_LOWER}"
 echo "  RAM: ${JAVA_OPTS}"
 echo "  Mods: ${MODS_DIR}"
+echo "  Bedrock: ${ENABLE_BEDROCK_LOWER}"
+echo "  Puerto Bedrock: ${BEDROCK_PORT}"
 echo "═══════════════════════════════════════════════════════"
 
 if [ "$(id -u)" -eq 0 ]; then

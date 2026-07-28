@@ -26,9 +26,9 @@ RUN groupadd -r minecraft && useradd -r -g minecraft -m -d /minecraft minecraft
 
 WORKDIR /minecraft
 
-# Instalar utilidades necesarias para descargar archivos y bajar privilegios
+# Instalar utilidades necesarias para descargar archivos, parsear JSON y bajar privilegios
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends curl wget gosu && \
+    apt-get install -y --no-install-recommends curl wget jq gosu && \
     rm -rf /var/lib/apt/lists/*
 
 # Copiar el script de entrada

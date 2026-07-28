@@ -19,6 +19,7 @@ services:
     # Puerto estandar de Minecraft Java Edition
     ports:
       - "25566:25566"
+      - "19132:19132/udp"
 
     # ── Variables de entorno ─────────────────────────────────────────────────
     environment:
@@ -38,6 +39,9 @@ services:
 
       # Puerto interno del servidor
       MC_PORT: "25566"
+      BEDROCK_PORT: "19132"
+      ENABLE_BEDROCK: "true"
+      ENABLE_FLOODGATE: "true"
 
       # RAM: ajusta según los recursos de tu VPS
       # Recomendado: mínimo 2 GB para 5-10 jugadores

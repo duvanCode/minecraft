@@ -17,3 +17,5 @@ Esta carpeta se monta automaticamente en `/minecraft/data/mods` dentro del conte
 - Descarga siempre la version compatible con `MC_VERSION` y `Fabric Loader`.
 - Los mods de esta carpeta afectan al servidor.
 - Si un mod requiere tambien instalacion en cliente, agregalo tambien en `mods/client`.
+- Para permitir acceso Bedrock, evita mods que exijan instalacion en el cliente Java.
+- El contenedor agrega automaticamente `fabric-api`, `Geyser` y `Floodgate` cuando `ENABLE_BEDROCK=true`.
